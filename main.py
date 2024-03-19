@@ -1,4 +1,4 @@
-from MEC_modle import *
+from MEC_model import *
 # from DQN_mf import DeepQNetwork
 import random
 
