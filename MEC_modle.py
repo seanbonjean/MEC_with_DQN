@@ -4,15 +4,14 @@ import numpy as np
 USER_NUM = 11
 MEC_NUM = 7
 
-# TODO 传输速率的参数确定
-u2m_band = 6.0 * (10 ** 9)  # 无线信道带宽 (Hz) 5G Sub-6GHz(FR1)
-u2m_power = 3  # 无线传输功率 (W)
-u2m_fade = 10 ** (-17)  # 功率损耗
-u2m_noise = 10 ** (-13)  # 高斯噪声 (W)
-m2m_power = 5  # 核心网传输功率m2m (W)
-m2c_power = 5  # 核心网传输功率m2c (W)
-m2c_speed = 2.3  # 各基站到云的连接速率 (bit/s)
-# TODO 计算此处u2m约2.5Mbit/s，示例代码u2m约2.3Mbit/s，但示例代码m2c只有2.3bit/s未免太慢了吧
+# 信道状态相关参数
+u2m_band = 2.3 * (10 ** 6)  # 无线信道带宽 (Hz)
+u2m_power = 1  # 无线传输功率 (W)
+u2m_fade = 10 ** (-2)  # 功率损耗
+u2m_noise = 10 ** (-6)  # 高斯噪声 (W)
+m2m_power = 3  # 核心网传输功率m2m (W)
+m2c_power = 3  # 核心网传输功率m2c (W)
+m2c_speed = 5700.0  # 各基站到云的连接速率 (KB/s)
 
 latency_factor = 0.5
 energy_factor = 0.5
@@ -25,9 +24,8 @@ class User:
     def __init__(self, server_index: int) -> None:
         random.seed()
 
-        self.cpu_frequency = random.uniform(0.5, 1)  # ED的计算能力，以CPU频率体现 (GHz)
-        self.efficiency_factor = 10 ** (-6)  # 芯片架构决定的能效因数，体现在能耗的计算中
-        # TODO 能效因数取值的问题：-6 or -20
+        self.cpu_frequency = random.uniform(2, 4)  # ED的计算能力，以CPU频率体现 (GHz)
+        self.efficiency_factor = 0.03  # 芯片架构决定的能效因数，体现在能耗的计算中
         self.my_server = server_index  # 服务该用户的MEC服务器编号
 
     def get_local_latency_energy(self, workload: float) -> tuple:
@@ -64,13 +62,21 @@ class Task:
             task.execute_location = action
         """
         self.latency = 0.0  # 任务总时延
-        self.energy_consumption = 0.0  # 任务能耗
+        self.energy = 0.0  # 任务能耗
         self.latency_std = 0.0  # 标准化后的总时延
         self.energy_std = 0.0  # 标准化后的能耗
         self.cost = 0.0  # 问题所优化的目标函数，是一个时延和能耗的加权参考值，将DQN每一episode的总cost与贪心算法得到的cost比较，以计算reward
 
     def get_cost(self) -> None:
+        # 若要修改cost的定义，应一并修改get_cost_external函数
         self.cost = self.latency_std * latency_factor + self.energy_std * energy_factor
+
+
+def get_cost_external(latency_std: float, energy_std: float) -> float:
+    """
+    使用外部记录的、不是Task对象属性中的时延和能耗，计算cost
+    """
+    return latency_std * latency_factor + energy_std * energy_factor
 
 
 class Channel:
@@ -80,14 +86,14 @@ class Channel:
     """
 
     def __init__(self) -> None:
-        self.u2m = np.empty([USER_NUM, MEC_NUM], dtype=float)  # user to MEC
-        self.m2m = np.empty([MEC_NUM, MEC_NUM], dtype=float)  # MEC to MEC
-        self.m2c = [m2c_speed for _ in range(MEC_NUM)]  # MEC to cloud
+        self.u2m = np.empty([USER_NUM, MEC_NUM], dtype=float)  # user to MEC (KB/s)
+        self.m2m = np.empty([MEC_NUM, MEC_NUM], dtype=float)  # MEC to MEC (KB/s)
+        self.m2c = [m2c_speed for _ in range(MEC_NUM)]  # MEC to cloud (KB/s)
 
         # u2m初始化
         for i in range(USER_NUM):
             # TODO 加入MEC协作后需改为完整的u2m速率
-            self.u2m[i, corresponding_MEC[i]] = u2m_band * np.log2(1 + u2m_power * u2m_fade / u2m_noise)
+            self.u2m[i, corresponding_MEC[i]] = u2m_band * np.log2(1 + u2m_power * u2m_fade / u2m_noise) / (8 * 2 ** 10)
 
         for i in range(MEC_NUM):
             # TODO 加入MEC协作后需添加MEC间传输
@@ -128,7 +134,7 @@ class MecServer:
 class CloudServer:
 
     def __init__(self) -> None:
-        self.cpu_frequency = 15  # 云的计算能力，以CPU频率体现 (GHz)
+        self.cpu_frequency = 7  # 云的计算能力，以CPU频率体现 (GHz)
         self.queue_latency = 0.0  # 清空当前任务队列所需的时间
 
     def get_cloud_latency_energy(self, task: Task, channel: Channel, indexes: tuple) -> tuple:
