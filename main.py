@@ -428,10 +428,18 @@ def make_excel(filename: str) -> None:
     workbook.save(filename)
 
 
-def plot_training_progress() -> None:
+def plot_training_progress(filename: str) -> None:
+    plt.subplot(2, 1, 1)
     plt.plot(dqn.total_reward)
-    plt.show()
+    plt.ylabel("reward")
+
+    plt.subplot(2, 1, 2)
     plt.plot(dqn.total_cost)
+    plt.xlabel("episode")
+    plt.ylabel("cost")
+
+    plt.suptitle("training progress")
+    plt.savefig(filename, dpi=300)
     plt.show()
 
 
@@ -464,4 +472,4 @@ if __name__ == "__main__":
     dqn.train()
 
     make_excel("C:/Users/sean-/Desktop/arguments.xls")
-    plot_training_progress()
+    plot_training_progress("C:/Users/sean-/Desktop/train.png")

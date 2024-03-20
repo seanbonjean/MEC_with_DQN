@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="045bd573-d7b3-4945-89ad-4770799b5651" name="更改" comment="first usable version 1.0">
+    <list default="true" id="045bd573-d7b3-4945-89ad-4770799b5651" name="更改" comment="feat: output arguments to excel and plot training progress with reward and cost">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
@@ -114,7 +114,15 @@
       <option name="project" value="LOCAL" />
       <updated>1710934689222</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="feat: output arguments to excel and plot training progress with reward and cost">
+      <option name="closed" value="true" />
+      <created>1710945074504</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1710945074504</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -122,6 +130,7 @@
     <MESSAGE value="added greedy method and modified model arguments" />
     <MESSAGE value="corrected file name" />
     <MESSAGE value="first usable version 1.0" />
-    <option name="LAST_COMMIT_MESSAGE" value="first usable version 1.0" />
+    <MESSAGE value="feat: output arguments to excel and plot training progress with reward and cost" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: output arguments to excel and plot training progress with reward and cost" />
   </component>
 </project>
