@@ -2,6 +2,8 @@ from MEC_model import *
 from DQN_mf import DeepQNetwork
 import random
 import copy
+import xlwt
+import matplotlib.pyplot as plt
 
 TASK_NUM = 100
 
@@ -340,6 +342,99 @@ class DQN:
             print()
 
 
+def make_excel(filename: str) -> None:
+    workbook = xlwt.Workbook()
+
+    worksheet = workbook.add_sheet("env")
+
+    for i in range(4):
+        worksheet.col(i).width = 256 * 20
+
+    worksheet.write(0, 0, "user_cpu")
+    for i in range(USER_NUM):
+        worksheet.write(i + 1, 0, str(user_list[i].cpu_frequency))
+
+    worksheet.write(0, 1, "task_size")
+    worksheet.write(0, 2, "task_my_user")
+    for i in range(TASK_NUM):
+        worksheet.write(i + 1, 1, str(task_list[i].data_size))
+        worksheet.write(i + 1, 2, str(task_list[i].my_user))
+
+    worksheet.write(0, 3, "mec_cpu")
+    for i in range(MEC_NUM):
+        worksheet.write(i + 1, 3, str(mec_list[i].cpu_frequency))
+
+    worksheet = workbook.add_sheet("inspect")
+
+    for i in range(12):
+        worksheet.col(i).width = 256 * 20
+
+    worksheet.write(0, 0, "local")
+    worksheet.write(0, 2, "local_mec")
+    worksheet.write(0, 4, "random_mec")
+    worksheet.write(0, 6, "cloud")
+    for i in range(4):
+        worksheet.write(1, i * 2, "latency")
+        worksheet.write(1, i * 2 + 1, "energy")
+    for i in range(TASK_NUM):
+        worksheet.write(i + 2, 0, str(inspect.local_values[i][0]))
+        worksheet.write(i + 2, 1, str(inspect.local_values[i][1]))
+        worksheet.write(i + 2, 2, str(inspect.local_mec_values[i][0]))
+        worksheet.write(i + 2, 3, str(inspect.local_mec_values[i][1]))
+        # TODO 加入MEC协作后取消注释
+        # worksheet.write(i + 2, 4, str(inspect.random_mec_values[i][0]))
+        # worksheet.write(i + 2, 5, str(inspect.random_mec_values[i][1]))
+        worksheet.write(i + 2, 6, str(inspect.cloud_values[i][0]))
+        worksheet.write(i + 2, 7, str(inspect.cloud_values[i][1]))
+
+    worksheet.write(0, 8, "standardizer")
+    worksheet.write(1, 8, "latency")
+    worksheet.write(1, 10, "energy")
+    worksheet.write(2, 8, "min")
+    worksheet.write(2, 9, "max")
+    worksheet.write(2, 10, "min")
+    worksheet.write(2, 11, "max")
+    worksheet.write(3, 8, str(energy_standardizer.min))
+    worksheet.write(3, 9, str(energy_standardizer.max))
+    worksheet.write(3, 10, str(latency_standardizer.min))
+    worksheet.write(3, 11, str(latency_standardizer.max))
+
+    worksheet = workbook.add_sheet("greedy")
+
+    for i in range(4):
+        worksheet.col(i).width = 256 * 20
+
+    worksheet.write(0, 0, "exe_loc")
+    worksheet.write(0, 1, "latency")
+    worksheet.write(0, 2, "energy")
+    worksheet.write(0, 3, "cost")
+    for i in range(TASK_NUM):
+        worksheet.write(i + 1, 0, str(greedy.other_values[i][0]))
+        worksheet.write(i + 1, 1, str(greedy.other_values[i][1]))
+        worksheet.write(i + 1, 2, str(greedy.other_values[i][2]))
+        worksheet.write(i + 1, 3, str(greedy.greedy_cost[i]))
+
+    worksheet = workbook.add_sheet("DQN")
+
+    for i in range(2):
+        worksheet.col(i).width = 256 * 20
+
+    worksheet.write(0, 0, "reward")
+    worksheet.write(0, 1, "cost")
+    for i in range(dqn.EPISODE_NUM):
+        worksheet.write(i + 1, 0, str(dqn.total_reward[i]))
+        worksheet.write(i + 1, 1, str(dqn.total_cost[i]))
+
+    workbook.save(filename)
+
+
+def plot_training_progress() -> None:
+    plt.plot(dqn.total_reward)
+    plt.show()
+    plt.plot(dqn.total_cost)
+    plt.show()
+
+
 if __name__ == "__main__":
     random.seed()
 
@@ -354,10 +449,10 @@ if __name__ == "__main__":
 
     inspect = InspectParameters()
     inspect.try_all_situation()
-    inspect.show_situation("local", False)
-    inspect.show_situation("local_mec", False)
-    inspect.show_situation("random_mec", False)
-    inspect.show_situation("cloud", False)
+    inspect.show_situation("local", True)
+    inspect.show_situation("local_mec", True)
+    inspect.show_situation("random_mec", True)
+    inspect.show_situation("cloud", True)
     # latency_standardizer.reset()
     # energy_standardizer.reset()
 
@@ -367,3 +462,6 @@ if __name__ == "__main__":
 
     dqn = DQN()
     dqn.train()
+
+    make_excel("C:/Users/sean-/Desktop/arguments.xls")
+    plot_training_progress()
