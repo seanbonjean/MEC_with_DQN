@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="045bd573-d7b3-4945-89ad-4770799b5651" name="更改" comment="first commit">
+    <list default="true" id="045bd573-d7b3-4945-89ad-4770799b5651" name="更改" comment="corrected file name">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MEC_modle.py" beforeDir="false" afterPath="$PROJECT_DIR$/MEC_modle.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DQN_mf.py" beforeDir="false" afterPath="$PROJECT_DIR$/DQN_mf.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MEC_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/MEC_model.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -91,11 +92,29 @@
       <option name="project" value="LOCAL" />
       <updated>1710518441664</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="added greedy method and modified model arguments">
+      <option name="closed" value="true" />
+      <created>1710841998195</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1710841998195</updated>
+    </task>
+    <task id="LOCAL-00003" summary="corrected file name">
+      <option name="closed" value="true" />
+      <created>1710842124413</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1710842124413</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="first commit" />
-    <option name="LAST_COMMIT_MESSAGE" value="first commit" />
+    <MESSAGE value="added greedy method and modified model arguments" />
+    <MESSAGE value="corrected file name" />
+    <option name="LAST_COMMIT_MESSAGE" value="corrected file name" />
   </component>
 </project>

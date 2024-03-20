@@ -26,6 +26,7 @@ class User:
 
         self.cpu_frequency = random.uniform(2, 4)  # ED的计算能力，以CPU频率体现 (GHz)
         self.efficiency_factor = 0.03  # 芯片架构决定的能效因数，体现在能耗的计算中
+        self.queue_latency = 0.0  # 清空当前任务队列所需的时间
         self.my_server = server_index  # 服务该用户的MEC服务器编号
 
     def get_local_latency_energy(self, workload: float) -> tuple:

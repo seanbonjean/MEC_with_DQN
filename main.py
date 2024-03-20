@@ -1,6 +1,7 @@
 from MEC_model import *
-# from DQN_mf import DeepQNetwork
+from DQN_mf import DeepQNetwork
 import random
+import copy
 
 TASK_NUM = 100
 
@@ -109,18 +110,18 @@ class InspectParameters:
         else:
             print(location_str, end=' ')
 
-        cost_sum = 0.0
+        total_cost = 0.0
 
         for latency, energy in values:
             latency_std = latency_standardizer.get_standardized_value(latency)
             energy_std = energy_standardizer.get_standardized_value(energy)
             cost = get_cost_external(latency_std, energy_std)
-            cost_sum += cost
+            total_cost += cost
             if list_all:
                 print(f"latency: {latency:<23}--std-->{latency_std:>10.3}, \t\t"
                       f"energy: {energy:<23}--std-->{energy_std:>10.3}, \t\t"
                       f"cost: {cost:<.3}")
-        print(f"total cost: {cost_sum}")
+        print(f"total cost: {total_cost}")
 
 
 class Greedy:
@@ -130,6 +131,7 @@ class Greedy:
 
     def __init__(self) -> None:
         self.greedy_cost = list()  # 记录贪心算法下的任务cost，作为计算reward时的基准
+        self.accumulated_cost = list()  # 累加了的cost，以便计算reward时调用
         self.other_values = list()  # 记录卸载位置、时延、能耗等其他参数
 
     def get_greedy_results(self) -> None:
@@ -189,6 +191,11 @@ class Greedy:
             self.greedy_cost.append(min_cost)
             self.other_values.append((min_cost_exe_loc, min_cost_latency, min_cost_energy))
 
+        accumulated_cost = 0
+        for cost in self.greedy_cost:
+            accumulated_cost += cost
+            self.accumulated_cost.append(accumulated_cost)
+
     def show_greedy_results(self) -> None:
         print("******************************贪心卸载结果******************************")
         for i in range(len(self.greedy_cost)):
@@ -198,13 +205,139 @@ class Greedy:
                   f"cost: {greedy.greedy_cost[i]}")
 
 
-def state_init() -> None:
-    pass
+def state_init() -> tuple:
+    """
+    初始化系统状态，返回初始state和一份可供删改的任务列表副本
+    """
+    for user in user_list:
+        user.queue_latency = 0.0
+
+    for mec in mec_list:
+        mec.queue_latency = 0.0
+
+    cloud.queue_latency = 0.0
+
+    for task in task_list:
+        task.execute_location = 0
+        task.latency = 0.0
+        task.energy = 0.0
+        task.latency_std = 0.0
+        task.energy_std = 0.0
+        task.cost = 0.0
+
+    total_cost = 0
+    initial_state = [total_cost, TASK_NUM]  # state的定义：已规划任务的总成本；未规划任务的数量
+    active_tasklist = copy.deepcopy(task_list)  # 会被进行删改操作的、每一episode各自的tasklist
+
+    return initial_state, active_tasklist
 
 
-def state_step() -> None:
-    # 千万注意老师的代码里greedy_list是cost的累加值，而我这里greedy_cost是对应值，算base的时候记得要累加！
-    pass
+def state_step(state: list, action: int, active_tasklist: list) -> tuple:
+    """
+    提供系统状态变换相关功能，维护当前episode的tasklist副本 (active_tasklist)
+    返回的done指示当前episode是否结束（所有任务是否全部卸载完毕）
+    """
+    task = active_tasklist.pop(0)
+    remaining_task_num = len(active_tasklist)  # 剩余任务数（当前任务不计入）
+
+    user_index = task.my_user
+    server_index = user_list[user_index].my_server
+
+    # TODO 加入MEC协作后更改为注释中内容
+    if action == 0:
+        task.execute_location = server_index
+    elif action == 1:
+        task.execute_location = -1
+    elif action == 2:
+        task.execute_location = -2
+    else:
+        raise ValueError
+    """
+    if action == MEC_NUM:
+        task.execute_location = -1
+    elif action == MEC_NUM + 1:
+        task.execute_location = -2
+    else:
+        task.execute_location = action
+    """
+
+    if task.execute_location == -1:  # 本地执行
+        task.latency, task.energy = user_list[user_index].get_local_latency_energy(task.workload)
+    elif task.execute_location == -2:  # 卸载到云
+        task.latency, task.energy = cloud.get_cloud_latency_energy(task, speed, (user_index, server_index))
+    else:  # 卸载到MEC
+        task.latency, task.energy = mec_list[task.execute_location].get_mec_latency_energy(task, speed, (
+            user_index, server_index, task.execute_location))
+
+    task.latency_std = latency_standardizer.get_standardized_value(task.latency)
+    task.energy_std = energy_standardizer.get_standardized_value(task.energy)
+    task.get_cost()
+
+    state[0] += task.cost
+    state[1] -= 1
+
+    baseline_cost = greedy.accumulated_cost[TASK_NUM - remaining_task_num - 1]
+    reward = (baseline_cost - state[0]) / baseline_cost
+
+    done = remaining_task_num == 0
+
+    return state, reward, done, active_tasklist
+
+
+class DQN:
+    """
+    维护强化学习的agent
+    """
+
+    def __init__(self) -> None:
+        self.EPISODE_NUM = 2000
+        self.START_STEP = 20  # 第几步后开始学习
+        self.INTERVAL_STEP = 1  # 每隔几步学习一次
+
+        self.total_reward = list()  # 每个episode的累计reward
+        self.total_cost = list()  # 每个episode所有任务的总成本
+
+        n_actions = 3  # TODO 加入MEC协作后更改为 MEC_NUM + 2
+        n_features = 2
+        self.agent = DeepQNetwork(n_actions, n_features,
+                                  learning_rate=0.0005,  # 目前0.001效果比较好,0.0005比较好,0.0007,0.0008差别不大更好,0.0009好一些差别不大
+                                  reward_decay=0.7,  # 之前是0.7
+                                  e_greedy=0.9,
+                                  replace_target_iter=100,  # 每200步替换一次target_net参数，目前100比较好
+                                  memory_size=500,  # 记忆上限
+                                  output_graph=False  # 是否输出tensorboard文件
+                                  )
+
+    def train(self) -> None:
+        step = 0  # 记录循环次数
+        for episode in range(self.EPISODE_NUM):
+            print(f"episode No. {episode}: ", end='')
+            current_state, active_tasklist = state_init()
+            total_reward = 0
+            done = False
+
+            while not done:
+                step += 1
+                # 选择action
+                action = self.agent.choose_action(current_state)
+                print(action, end=' ')
+
+                # 执行action，环境变化
+                next_state, reward, done, active_tasklist = state_step(current_state, action, active_tasklist)
+                total_reward += reward
+                if done:
+                    self.total_reward.append(total_reward)
+                    self.total_cost.append(next_state[0])
+
+                # 保存该条记忆
+                self.agent.store_transition(current_state, action, reward, next_state)
+
+                # 等待记忆库积累一定量内容后再开始学习
+                if step > self.START_STEP and step % self.INTERVAL_STEP == 0:
+                    self.agent.learn()
+
+                current_state = next_state
+            print()
 
 
 if __name__ == "__main__":
@@ -220,7 +353,6 @@ if __name__ == "__main__":
     energy_standardizer = Standardizer()
 
     inspect = InspectParameters()
-
     inspect.try_all_situation()
     inspect.show_situation("local", False)
     inspect.show_situation("local_mec", False)
@@ -232,3 +364,6 @@ if __name__ == "__main__":
     greedy = Greedy()
     greedy.get_greedy_results()
     greedy.show_greedy_results()
+
+    dqn = DQN()
+    dqn.train()
