@@ -184,7 +184,8 @@ class Optimal:
             cloud.queue_latency = max(cloud.queue_latency - task_interval[task_count], 0)
 
             task_count += 1
-        print(f"optimal total cost: {self.total_cost}")
+        print("******************************遍历求最优总成本******************************"
+              f"optimal total cost: {self.total_cost}")
 
 
 class Greedy:
@@ -372,6 +373,8 @@ class DQN:
         self.START_STEP = 20  # 第几步后开始学习
         self.INTERVAL_STEP = 1  # 每隔几步学习一次
 
+        self.info_recorder = list()  # 记录每个episode中每一步的action/reward/cost（也就是state[0]）
+
         self.total_reward = list()  # 每个episode的累计reward
         self.total_cost = list()  # 每个episode所有任务的总成本
 
@@ -394,19 +397,32 @@ class DQN:
             total_reward = 0
             done = False
 
+            episode_info = list()
+
             while not done:
                 step += 1
                 # 选择action
                 action = self.agent.choose_action(current_state)
-                # print(action, end=' ')
+                print(action, end=' ')
 
                 # 执行action，环境变化
                 next_state, reward, done, active_tasklist = state_step(current_state, action, active_tasklist)
                 total_reward += reward
-                print(reward, end=' ')
                 if done:
                     self.total_reward.append(total_reward)
                     self.total_cost.append(next_state[0])
+
+                # 提取各位置的任务队列长度
+                qs_user = list()
+                for i in range(USER_NUM):
+                    qs_user.append(user_list[i].queue_latency)
+                qs_mec = list()
+                for i in range(MEC_NUM):
+                    qs_mec.append(mec_list[i].queue_latency)
+                qs_cloud = cloud.queue_latency
+                queue_status = (qs_user, qs_mec, qs_cloud)
+                # 保存该步所有信息，打印到excel
+                episode_info.append((str(action), reward, next_state[0], queue_status))
 
                 # 保存该条记忆
                 self.agent.store_transition(current_state, action, reward, next_state)
@@ -417,6 +433,7 @@ class DQN:
 
                 current_state = next_state
             print()
+            self.info_recorder.append(episode_info)
 
 
 def make_excel(filename: str) -> None:
@@ -431,11 +448,11 @@ def make_excel(filename: str) -> None:
     for i in range(USER_NUM):
         worksheet.write(i + 1, 0, user_list[i].cpu_frequency)
 
-    worksheet.write(0, 1, "task_size")
-    worksheet.write(0, 2, "task_my_user")
+    worksheet.write(0, 1, "task_my_user")
+    worksheet.write(0, 2, "task_size")
     for i in range(TASK_NUM):
-        worksheet.write(i + 1, 1, task_list[i].data_size)
-        worksheet.write(i + 1, 2, str(task_list[i].my_user))
+        worksheet.write(i + 1, 1, str(task_list[i].my_user))
+        worksheet.write(i + 1, 2, task_list[i].data_size)
 
     worksheet.write(0, 3, "mec_cpu")
     for i in range(MEC_NUM):
@@ -466,7 +483,7 @@ def make_excel(filename: str) -> None:
 
     worksheet = workbook.add_sheet("greedy")
 
-    for i in range(4):
+    for i in range(6):
         worksheet.col(i).width = 256 * 20
 
     worksheet.write(0, 0, "exe_loc")
@@ -479,19 +496,55 @@ def make_excel(filename: str) -> None:
         worksheet.write(i + 1, 2, greedy.other_values[i][2])
         worksheet.write(i + 1, 3, greedy.greedy_cost[i])
 
-    worksheet.write(0, 4, "opt_cost")
-    worksheet.write(1, 4, opt.total_cost)
+    worksheet.write(1, 4, "opt_total_cost")
+    worksheet.write(1, 5, opt.total_cost)
+    worksheet.write(2, 4, "greedy_total_cost")
+    worksheet.write(2, 5, sum(greedy.greedy_cost))
 
     worksheet = workbook.add_sheet("DQN")
 
-    for i in range(2):
+    for i in range(3):
         worksheet.col(i).width = 256 * 20
 
-    worksheet.write(0, 0, "reward")
-    worksheet.write(0, 1, "cost")
+    worksheet.write(0, 0, "episode No.")
+    worksheet.write(0, 1, "total reward")
+    worksheet.write(0, 2, "total cost")
     for i in range(dqn.EPISODE_NUM):
-        worksheet.write(i + 1, 0, dqn.total_reward[i])
-        worksheet.write(i + 1, 1, dqn.total_cost[i])
+        worksheet.write(i + 1, 0, str(i + 1))
+        worksheet.write(i + 1, 1, dqn.total_reward[i])
+        worksheet.write(i + 1, 2, dqn.total_cost[i])
+
+    for i in range(dqn.EPISODE_NUM):
+        worksheet = workbook.add_sheet("epi No. " + str(i + 1))
+        worksheet.write(0, 0, "total")
+        worksheet.write(0, 2, dqn.total_reward[i])
+        worksheet.write(0, 3, dqn.total_cost[i])
+        worksheet.write(0, 5, "user No.")
+        worksheet.write(0, 5 + USER_NUM, "mec No.")
+        worksheet.write(0, 5 + USER_NUM + MEC_NUM, "cloud")
+        worksheet.write(0, 6 + USER_NUM + MEC_NUM, "pass time")
+        worksheet.write(1, 0, "step No.")
+        worksheet.write(1, 1, "action")
+        worksheet.write(1, 2, "reward")
+        worksheet.write(1, 3, "cost")
+        worksheet.write(1, 4, "queue")
+        worksheet.write(2, 4, "status")
+        for j in range(USER_NUM):
+            worksheet.write(1, 5 + j, str(j + 1))
+        for j in range(MEC_NUM):
+            worksheet.write(1, 5 + USER_NUM + j, str(j + 1))
+
+        for j in range(TASK_NUM):
+            worksheet.write(2 + j, 0, str(j + 1))
+            worksheet.write(2 + j, 1, dqn.info_recorder[i][j][0])
+            worksheet.write(2 + j, 2, dqn.info_recorder[i][j][1])
+            worksheet.write(2 + j, 3, dqn.info_recorder[i][j][2])
+            for k in range(USER_NUM):
+                worksheet.write(2 + j, 5 + k, dqn.info_recorder[i][j][3][0][k])
+            for k in range(MEC_NUM):
+                worksheet.write(2 + j, 5 + USER_NUM + k, dqn.info_recorder[i][j][3][1][k])
+            worksheet.write(2 + j, 5 + USER_NUM + MEC_NUM, dqn.info_recorder[i][j][3][2])
+            worksheet.write(2 + j, 6 + USER_NUM + MEC_NUM, task_interval[j])
 
     workbook.save(filename)
 
