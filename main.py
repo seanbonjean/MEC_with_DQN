@@ -184,8 +184,8 @@ class Optimal:
             cloud.queue_latency = max(cloud.queue_latency - task_interval[task_count], 0)
 
             task_count += 1
-        print("******************************遍历求最优总成本******************************"
-              f"optimal total cost: {self.total_cost}")
+        print("******************************遍历求最优总成本******************************")
+        print(f"optimal total cost: {self.total_cost}")
 
 
 class Greedy:
@@ -261,7 +261,7 @@ class Greedy:
 
             task_count += 1
 
-        accumulated_cost = 0
+        accumulated_cost = 0.0
         for cost in self.greedy_cost:
             accumulated_cost += cost
             self.accumulated_cost.append(accumulated_cost)
@@ -499,7 +499,7 @@ def make_excel(filename: str) -> None:
     worksheet.write(1, 4, "opt_total_cost")
     worksheet.write(1, 5, opt.total_cost)
     worksheet.write(2, 4, "greedy_total_cost")
-    worksheet.write(2, 5, sum(greedy.greedy_cost))
+    worksheet.write(2, 5, greedy.accumulated_cost[TASK_NUM-1])
 
     worksheet = workbook.add_sheet("DQN")
 
