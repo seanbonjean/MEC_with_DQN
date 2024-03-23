@@ -13,8 +13,8 @@ m2m_power = 3  # 核心网传输功率m2m (W)
 m2c_power = 3  # 核心网传输功率m2c (W)
 m2c_speed = 5700.0  # 各基站到云的连接速率 (KB/s)
 
-latency_factor = 0.5
-energy_factor = 0.5
+LATENCY_FACTOR = 0.5
+ENERGY_FACTOR = 0.5
 
 # TODO 该列表为每个用户指定对应MEC服务器，等加入MEC协作后需删去
 corresponding_MEC = [0, 0, 1, 2, 3, 4, 4, 4, 5, 5, 6]
@@ -37,7 +37,12 @@ class User:
         示例：
         task.latency, task.energy = user.get_local_latency_energy(task.workload)
         """
-        return (workload / self.cpu_frequency), self.efficiency_factor * workload * self.cpu_frequency ** 2
+        exe_latency = workload / self.cpu_frequency
+        latency = self.queue_latency + exe_latency
+
+        energy = self.efficiency_factor * workload * self.cpu_frequency ** 2
+
+        return latency, energy
 
 
 class Task:
@@ -63,21 +68,20 @@ class Task:
             task.execute_location = action
         """
         self.latency = 0.0  # 任务总时延
+        self.latency_min = 0.0
+        self.latency_max = 0.0
         self.energy = 0.0  # 任务能耗
+        self.energy_min = 0.0
+        self.energy_max = 0.0
         self.latency_std = 0.0  # 标准化后的总时延
         self.energy_std = 0.0  # 标准化后的能耗
         self.cost = 0.0  # 问题所优化的目标函数，是一个时延和能耗的加权参考值，将DQN每一episode的总cost与贪心算法得到的cost比较，以计算reward
 
     def get_cost(self) -> None:
-        # 若要修改cost的定义，应一并修改get_cost_external函数
-        self.cost = self.latency_std * latency_factor + self.energy_std * energy_factor
-
-
-def get_cost_external(latency_std: float, energy_std: float) -> float:
-    """
-    使用外部记录的、不是Task对象属性中的时延和能耗，计算cost
-    """
-    return latency_std * latency_factor + energy_std * energy_factor
+        self.latency_std = (self.latency - self.latency_min) / (self.latency_max - self.latency_min)
+        self.energy_std = (self.energy - self.energy_min) / (self.energy_max - self.energy_min)
+        self.cost = self.latency_std * LATENCY_FACTOR + self.energy_std * ENERGY_FACTOR
+        # self.cost = self.latency * 0.18 + self.energy * 0.82
 
 
 class Channel:

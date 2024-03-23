@@ -8,35 +8,6 @@ import matplotlib.pyplot as plt
 TASK_NUM = 100
 
 
-class Standardizer:
-    """
-    实现标准化处理的相关功能
-    """
-
-    def __init__(self) -> None:
-        self.max = 0.0
-        self.min = float('inf')
-
-    def reset(self) -> None:
-        self.max = 0.0
-        self.min = float('inf')
-
-    def min_max_maintainer(self, new_sample: float) -> None:
-        """
-        维护最大最小值
-        """
-        if self.max < new_sample:
-            self.max = new_sample
-        if self.min > new_sample:
-            self.min = new_sample
-
-    def get_standardized_value(self, original: float) -> float:
-        """
-        进行标准化处理
-        """
-        return (original - self.min) / (self.max - self.min)
-
-
 class InspectParameters:
     """
     检视当前参数对MEC系统性能的影响
@@ -60,35 +31,56 @@ class InspectParameters:
             server_index = user_list[user_index].my_server
 
             # 全部本地执行
-            latency, energy = user_list[user_index].get_local_latency_energy(task.workload)
-            self.local_values.append((latency, energy))
+            user_list[user_index].queue_latency = 0.0  # 不考虑其他任务的影响，下同
+            task.latency, task.energy = user_list[user_index].get_local_latency_energy(task.workload)
+            self.local_values.append((task.latency, task.energy))
 
-            latency_standardizer.min_max_maintainer(latency)
-            energy_standardizer.min_max_maintainer(energy)
+            task.latency_min = task.latency
+            task.latency_max = task.latency
+            task.energy_min = task.energy
+            task.energy_max = task.energy
 
             # 全部本地MEC执行
-            latency, energy = mec_list[server_index].get_mec_latency_energy(task, speed,
-                                                                            (user_index, server_index, server_index))
-            self.local_mec_values.append((latency, energy))
+            mec_list[server_index].queue_latency = 0.0
+            task.latency, task.energy = mec_list[server_index].get_mec_latency_energy(task, speed, (
+                user_index, server_index, server_index))
+            self.local_mec_values.append((task.latency, task.energy))
 
-            latency_standardizer.min_max_maintainer(latency)
-            energy_standardizer.min_max_maintainer(energy)
+            if task.latency_min > task.latency:
+                task.latency_min = task.latency
+            if task.latency_max < task.latency:
+                task.latency_max = task.latency
+            if task.energy_min > task.energy:
+                task.energy_min = task.energy
+            if task.energy_max < task.energy:
+                task.energy_max = task.energy
 
             # 随机MEC执行
             # TODO 加入MEC协作后添加功能
 
             # 全部云上执行
-            latency, energy = cloud.get_cloud_latency_energy(task, speed, (user_index, server_index))
-            self.cloud_values.append((latency, energy))
+            cloud.queue_latency = 0.0
+            task.latency, task.energy = cloud.get_cloud_latency_energy(task, speed, (user_index, server_index))
+            self.cloud_values.append((task.latency, task.energy))
 
-            latency_standardizer.min_max_maintainer(latency)
-            energy_standardizer.min_max_maintainer(energy)
+            if task.latency_min > task.latency:
+                task.latency_min = task.latency
+            if task.latency_max < task.latency:
+                task.latency_max = task.latency
+            if task.energy_min > task.energy:
+                task.energy_min = task.energy
+            if task.energy_max < task.energy:
+                task.energy_max = task.energy
 
-    def show_situation(self, location: str, list_all: bool) -> None:
+            task.latency_max *= 1.1
+            task.latency_min *= 0.9
+            task.energy_max *= 1.1
+            task.energy_min *= 0.9
+
+    def show_situation(self, location: str) -> None:
         """
         进行标准化处理，计算成本和总成本，显示所选情景的所有性能参数
         :param location: 选择情景
-        :param list_all: 选择是否列出所有task对应的性能参数
         """
         if location == "local":
             location_str = "全部本地执行"
@@ -107,23 +99,92 @@ class InspectParameters:
         else:
             raise ValueError
 
-        if list_all:
-            print("******************************" + location_str + "******************************")
-        else:
-            print(location_str, end=' ')
-
-        total_cost = 0.0
-
+        print("******************************" + location_str + "******************************")
         for latency, energy in values:
-            latency_std = latency_standardizer.get_standardized_value(latency)
-            energy_std = energy_standardizer.get_standardized_value(energy)
-            cost = get_cost_external(latency_std, energy_std)
-            total_cost += cost
-            if list_all:
-                print(f"latency: {latency:<23}--std-->{latency_std:>10.3}, \t\t"
-                      f"energy: {energy:<23}--std-->{energy_std:>10.3}, \t\t"
-                      f"cost: {cost:<.3}")
-        print(f"total cost: {total_cost}")
+            print(f"latency: {latency:<23}, \t\tenergy: {energy:<23}")
+
+
+class Optimal:
+    """
+    遍历所有情况寻找最优解，计算最优解下的total_cost
+    """
+
+    def __init__(self) -> None:
+        self.total_cost = 0.0
+
+    def get_opt_cost(self) -> None:
+        for user in user_list:
+            user.queue_latency = 0.0
+        for mec in mec_list:
+            mec.queue_latency = 0.0
+        cloud.queue_latency = 0.0
+
+        task_count = 0
+
+        for task in task_list:
+            user_index = task.my_user
+            server_index = user_list[user_index].my_server
+
+            # 本地执行
+            task.execute_location = -1
+            task.latency, task.energy = user_list[user_index].get_local_latency_energy(task.workload)
+            task.get_cost()
+
+            min_cost = task.cost  # cost的最小值
+            min_cost_exe_loc = -1  # 最小cost对应的卸载位置
+            min_cost_latency = task.latency  # 最小cost对应的时延
+            min_cost_energy = task.energy  # 最小cost对应的能耗
+
+            # 卸载到本地MEC
+            task.execute_location = server_index  # TODO 加入MEC协作后更改为对所有MEC的遍历
+            task.latency, task.energy = mec_list[task.execute_location].get_mec_latency_energy(task, speed, (
+                user_index, server_index, task.execute_location))
+            task.get_cost()
+
+            if task.cost < min_cost:
+                min_cost = task.cost
+                min_cost_exe_loc = server_index
+                min_cost_latency = task.latency
+                min_cost_energy = task.energy
+
+            # 卸载到云
+            task.execute_location = -2
+            task.latency, task.energy = cloud.get_cloud_latency_energy(task, speed, (user_index, server_index))
+            task.get_cost()
+
+            if task.cost < min_cost:
+                min_cost = task.cost
+                min_cost_exe_loc = -2
+                min_cost_latency = task.latency
+                min_cost_energy = task.energy
+
+            task.execute_location = min_cost_exe_loc
+            task.latency = min_cost_latency
+            task.energy = min_cost_energy
+            task.get_cost()
+
+            if task.cost != min_cost:
+                raise ValueError
+
+            self.total_cost += task.cost
+
+            # 任务队列的堆积
+            if min_cost_exe_loc == -1:
+                user_list[user_index].queue_latency = min_cost_latency
+            elif min_cost_exe_loc == -2:
+                cloud.queue_latency = min_cost_latency
+            else:
+                mec_list[min_cost_exe_loc].queue_latency = min_cost_latency
+
+            # 经过一定时间，任务队列减小
+            for user in user_list:
+                user.queue_latency = max(user.queue_latency - task_interval[task_count], 0)
+            for mec in mec_list:
+                mec.queue_latency = max(mec.queue_latency - task_interval[task_count], 0)
+            cloud.queue_latency = max(cloud.queue_latency - task_interval[task_count], 0)
+
+            task_count += 1
+        print(f"optimal total cost: {self.total_cost}")
 
 
 class Greedy:
@@ -137,61 +198,67 @@ class Greedy:
         self.other_values = list()  # 记录卸载位置、时延、能耗等其他参数
 
     def get_greedy_results(self) -> None:
+        for user in user_list:
+            user.queue_latency = 0.0
+        for mec in mec_list:
+            mec.queue_latency = 0.0
+        cloud.queue_latency = 0.0
+
+        task_count = 0
+
         for task in task_list:
             user_index = task.my_user
             server_index = user_list[user_index].my_server
 
+            option_list = list()  # 存储所有卸载选项
+
             # 本地执行
-            task.execute_location = -1
-            task.latency, task.energy = user_list[user_index].get_local_latency_energy(task.workload)
-            task.latency_std = latency_standardizer.get_standardized_value(task.latency)
-            task.energy_std = energy_standardizer.get_standardized_value(task.energy)
-            task.get_cost()
-
-            min_cost = task.cost  # cost的最小值
-            min_cost_exe_loc = -1  # 最小cost对应的卸载位置
-            min_cost_latency = task.latency  # 最小cost对应的时延
-            min_cost_energy = task.energy  # 最小cost对应的能耗
-
+            option_list.append((-1, user_list[user_index].cpu_frequency, user_list[user_index].queue_latency))
             # 卸载到本地MEC
-            task.execute_location = server_index  # TODO 加入MEC协作后更改为对所有MEC的遍历
-            task.latency, task.energy = mec_list[task.execute_location].get_mec_latency_energy(task, speed, (
-                user_index, server_index, task.execute_location))
-            task.latency_std = latency_standardizer.get_standardized_value(task.latency)
-            task.energy_std = energy_standardizer.get_standardized_value(task.energy)
-            task.get_cost()
-
-            if task.cost < min_cost:
-                min_cost = task.cost
-                min_cost_exe_loc = server_index
-                min_cost_latency = task.latency
-                min_cost_energy = task.energy
-
+            i = server_index  # TODO 加入MEC协作后更改为遍历加入所有MEC
+            option_list.append((i, mec_list[i].cpu_frequency, mec_list[i].queue_latency))
             # 卸载到云
-            task.execute_location = -2
-            task.latency, task.energy = cloud.get_cloud_latency_energy(task, speed, (user_index, server_index))
-            task.latency_std = latency_standardizer.get_standardized_value(task.latency)
-            task.energy_std = energy_standardizer.get_standardized_value(task.energy)
+            option_list.append((-2, cloud.cpu_frequency, cloud.queue_latency))
+
+            first_option = list()  # 优先选队列为空的位置卸载
+            last_option = list()
+            for option in option_list:
+                if option[2] < 0.1:
+                    first_option.append(option)
+                else:
+                    last_option.append(option)
+            if first_option:  # “首选”列表非空，即存在队列为空的位置
+                # 选CPU频率最大的位置卸载
+                first_option.sort(key=lambda x: x[1], reverse=True)
+                task.execute_location = first_option[0][0]
+            else:
+                # 若无队列为空的位置，选队列时间最短的位置卸载
+                last_option.sort(key=lambda x: x[2])
+                task.execute_location = last_option[0][0]
+
+            if task.execute_location == -1:  # 本地执行
+                task.latency, task.energy = user_list[user_index].get_local_latency_energy(task.workload)
+                user_list[user_index].queue_latency = task.latency
+            elif task.execute_location == -2:  # 卸载到云
+                task.latency, task.energy = cloud.get_cloud_latency_energy(task, speed, (user_index, server_index))
+                cloud.queue_latency = task.latency
+            else:  # 卸载到MEC
+                task.latency, task.energy = mec_list[task.execute_location].get_mec_latency_energy(task, speed, (
+                    user_index, server_index, task.execute_location))
+                mec_list[task.execute_location].queue_latency = task.latency
             task.get_cost()
 
-            if task.cost < min_cost:
-                min_cost = task.cost
-                min_cost_exe_loc = -2
-                min_cost_latency = task.latency
-                min_cost_energy = task.energy
+            self.greedy_cost.append(task.cost)
+            self.other_values.append((task.execute_location, task.latency, task.energy))
 
-            task.execute_location = min_cost_exe_loc
-            task.latency = min_cost_latency
-            task.energy = min_cost_energy
-            task.latency_std = latency_standardizer.get_standardized_value(task.latency)
-            task.energy_std = energy_standardizer.get_standardized_value(task.energy)
-            task.get_cost()
+            # 经过一定时间，任务队列减小
+            for user in user_list:
+                user.queue_latency = max(user.queue_latency - task_interval[task_count], 0)
+            for mec in mec_list:
+                mec.queue_latency = max(mec.queue_latency - task_interval[task_count], 0)
+            cloud.queue_latency = max(cloud.queue_latency - task_interval[task_count], 0)
 
-            if task.cost != min_cost:
-                raise ValueError
-
-            self.greedy_cost.append(min_cost)
-            self.other_values.append((min_cost_exe_loc, min_cost_latency, min_cost_energy))
+            task_count += 1
 
         accumulated_cost = 0
         for cost in self.greedy_cost:
@@ -265,23 +332,32 @@ def state_step(state: list, action: int, active_tasklist: list) -> tuple:
 
     if task.execute_location == -1:  # 本地执行
         task.latency, task.energy = user_list[user_index].get_local_latency_energy(task.workload)
+        user_list[user_index].queue_latency = task.latency
     elif task.execute_location == -2:  # 卸载到云
         task.latency, task.energy = cloud.get_cloud_latency_energy(task, speed, (user_index, server_index))
+        cloud.queue_latency = task.latency
     else:  # 卸载到MEC
         task.latency, task.energy = mec_list[task.execute_location].get_mec_latency_energy(task, speed, (
             user_index, server_index, task.execute_location))
-
-    task.latency_std = latency_standardizer.get_standardized_value(task.latency)
-    task.energy_std = energy_standardizer.get_standardized_value(task.energy)
+        mec_list[task.execute_location].queue_latency = task.latency
     task.get_cost()
 
     state[0] += task.cost
     state[1] -= 1
 
-    baseline_cost = greedy.accumulated_cost[TASK_NUM - remaining_task_num - 1]
+    task_count = TASK_NUM - remaining_task_num - 1
+    baseline_cost = greedy.accumulated_cost[task_count]
     reward = (baseline_cost - state[0]) / baseline_cost
+    # reward = baseline_cost - state[0]
 
     done = remaining_task_num == 0
+
+    # 经过一定时间，任务队列减小
+    for user in user_list:
+        user.queue_latency = max(user.queue_latency - task_interval[task_count], 0)
+    for mec in mec_list:
+        mec.queue_latency = max(mec.queue_latency - task_interval[task_count], 0)
+    cloud.queue_latency = max(cloud.queue_latency - task_interval[task_count], 0)
 
     return state, reward, done, active_tasklist
 
@@ -292,7 +368,7 @@ class DQN:
     """
 
     def __init__(self) -> None:
-        self.EPISODE_NUM = 2000
+        self.EPISODE_NUM = 500
         self.START_STEP = 20  # 第几步后开始学习
         self.INTERVAL_STEP = 1  # 每隔几步学习一次
 
@@ -322,11 +398,12 @@ class DQN:
                 step += 1
                 # 选择action
                 action = self.agent.choose_action(current_state)
-                print(action, end=' ')
+                # print(action, end=' ')
 
                 # 执行action，环境变化
                 next_state, reward, done, active_tasklist = state_step(current_state, action, active_tasklist)
                 total_reward += reward
+                print(reward, end=' ')
                 if done:
                     self.total_reward.append(total_reward)
                     self.total_cost.append(next_state[0])
@@ -352,21 +429,21 @@ def make_excel(filename: str) -> None:
 
     worksheet.write(0, 0, "user_cpu")
     for i in range(USER_NUM):
-        worksheet.write(i + 1, 0, str(user_list[i].cpu_frequency))
+        worksheet.write(i + 1, 0, user_list[i].cpu_frequency)
 
     worksheet.write(0, 1, "task_size")
     worksheet.write(0, 2, "task_my_user")
     for i in range(TASK_NUM):
-        worksheet.write(i + 1, 1, str(task_list[i].data_size))
+        worksheet.write(i + 1, 1, task_list[i].data_size)
         worksheet.write(i + 1, 2, str(task_list[i].my_user))
 
     worksheet.write(0, 3, "mec_cpu")
     for i in range(MEC_NUM):
-        worksheet.write(i + 1, 3, str(mec_list[i].cpu_frequency))
+        worksheet.write(i + 1, 3, mec_list[i].cpu_frequency)
 
     worksheet = workbook.add_sheet("inspect")
 
-    for i in range(12):
+    for i in range(8):
         worksheet.col(i).width = 256 * 20
 
     worksheet.write(0, 0, "local")
@@ -377,27 +454,15 @@ def make_excel(filename: str) -> None:
         worksheet.write(1, i * 2, "latency")
         worksheet.write(1, i * 2 + 1, "energy")
     for i in range(TASK_NUM):
-        worksheet.write(i + 2, 0, str(inspect.local_values[i][0]))
-        worksheet.write(i + 2, 1, str(inspect.local_values[i][1]))
-        worksheet.write(i + 2, 2, str(inspect.local_mec_values[i][0]))
-        worksheet.write(i + 2, 3, str(inspect.local_mec_values[i][1]))
+        worksheet.write(i + 2, 0, inspect.local_values[i][0])
+        worksheet.write(i + 2, 1, inspect.local_values[i][1])
+        worksheet.write(i + 2, 2, inspect.local_mec_values[i][0])
+        worksheet.write(i + 2, 3, inspect.local_mec_values[i][1])
         # TODO 加入MEC协作后取消注释
-        # worksheet.write(i + 2, 4, str(inspect.random_mec_values[i][0]))
-        # worksheet.write(i + 2, 5, str(inspect.random_mec_values[i][1]))
-        worksheet.write(i + 2, 6, str(inspect.cloud_values[i][0]))
-        worksheet.write(i + 2, 7, str(inspect.cloud_values[i][1]))
-
-    worksheet.write(0, 8, "standardizer")
-    worksheet.write(1, 8, "latency")
-    worksheet.write(1, 10, "energy")
-    worksheet.write(2, 8, "min")
-    worksheet.write(2, 9, "max")
-    worksheet.write(2, 10, "min")
-    worksheet.write(2, 11, "max")
-    worksheet.write(3, 8, str(energy_standardizer.min))
-    worksheet.write(3, 9, str(energy_standardizer.max))
-    worksheet.write(3, 10, str(latency_standardizer.min))
-    worksheet.write(3, 11, str(latency_standardizer.max))
+        # worksheet.write(i + 2, 4, inspect.random_mec_values[i][0])
+        # worksheet.write(i + 2, 5, inspect.random_mec_values[i][1])
+        worksheet.write(i + 2, 6, inspect.cloud_values[i][0])
+        worksheet.write(i + 2, 7, inspect.cloud_values[i][1])
 
     worksheet = workbook.add_sheet("greedy")
 
@@ -410,9 +475,12 @@ def make_excel(filename: str) -> None:
     worksheet.write(0, 3, "cost")
     for i in range(TASK_NUM):
         worksheet.write(i + 1, 0, str(greedy.other_values[i][0]))
-        worksheet.write(i + 1, 1, str(greedy.other_values[i][1]))
-        worksheet.write(i + 1, 2, str(greedy.other_values[i][2]))
-        worksheet.write(i + 1, 3, str(greedy.greedy_cost[i]))
+        worksheet.write(i + 1, 1, greedy.other_values[i][1])
+        worksheet.write(i + 1, 2, greedy.other_values[i][2])
+        worksheet.write(i + 1, 3, greedy.greedy_cost[i])
+
+    worksheet.write(0, 4, "opt_cost")
+    worksheet.write(1, 4, opt.total_cost)
 
     worksheet = workbook.add_sheet("DQN")
 
@@ -422,8 +490,8 @@ def make_excel(filename: str) -> None:
     worksheet.write(0, 0, "reward")
     worksheet.write(0, 1, "cost")
     for i in range(dqn.EPISODE_NUM):
-        worksheet.write(i + 1, 0, str(dqn.total_reward[i]))
-        worksheet.write(i + 1, 1, str(dqn.total_cost[i]))
+        worksheet.write(i + 1, 0, dqn.total_reward[i])
+        worksheet.write(i + 1, 1, dqn.total_cost[i])
 
     workbook.save(filename)
 
@@ -448,21 +516,24 @@ if __name__ == "__main__":
 
     user_list = [User(corresponding_MEC[i]) for i in range(USER_NUM)]
     task_list = [Task(random.randint(0, USER_NUM - 1)) for i in range(TASK_NUM)]
+    # 任务之间的间隔时间
+    MAX_INTERVAL = 0.3
+    ZERO_PROBABILITY = 0.7
+    task_interval = [random.uniform(0, MAX_INTERVAL) if random.uniform(0, 1) > ZERO_PROBABILITY else 0 for i in
+                     range(TASK_NUM)]
     mec_list = [MecServer() for i in range(MEC_NUM)]
     cloud = CloudServer()
     speed = Channel()
 
-    latency_standardizer = Standardizer()
-    energy_standardizer = Standardizer()
-
     inspect = InspectParameters()
     inspect.try_all_situation()
-    inspect.show_situation("local", True)
-    inspect.show_situation("local_mec", True)
-    inspect.show_situation("random_mec", True)
-    inspect.show_situation("cloud", True)
-    # latency_standardizer.reset()
-    # energy_standardizer.reset()
+    inspect.show_situation("local")
+    inspect.show_situation("local_mec")
+    inspect.show_situation("random_mec")
+    inspect.show_situation("cloud")
+
+    opt = Optimal()
+    opt.get_opt_cost()
 
     greedy = Greedy()
     greedy.get_greedy_results()
