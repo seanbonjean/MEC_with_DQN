@@ -10,8 +10,8 @@ import pandas as pd
 import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 
-np.random.seed(1)
-tf.set_random_seed(1)
+np.random.seed(0)
+tf.set_random_seed(0)
 
 
 # Deep Q Network off-policy

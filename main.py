@@ -195,7 +195,6 @@ class Greedy:
 
     def __init__(self) -> None:
         self.greedy_cost = list()  # 记录贪心算法下的任务cost，作为计算reward时的基准
-        self.accumulated_cost = list()  # 累加了的cost，以便计算reward时调用
         self.other_values = list()  # 记录卸载位置、时延、能耗等其他参数
 
     def get_greedy_results(self) -> None:
@@ -260,11 +259,6 @@ class Greedy:
             cloud.queue_latency = max(cloud.queue_latency - task_interval[task_count], 0)
 
             task_count += 1
-
-        accumulated_cost = 0.0
-        for cost in self.greedy_cost:
-            accumulated_cost += cost
-            self.accumulated_cost.append(accumulated_cost)
 
     def show_greedy_results(self) -> None:
         print("******************************贪心卸载结果******************************")
@@ -343,11 +337,11 @@ def state_step(state: list, action: int, active_tasklist: list) -> tuple:
         mec_list[task.execute_location].queue_latency = task.latency
     task.get_cost()
 
-    state[0] += task.cost
+    state[0] = task.cost
     state[1] -= 1
 
     task_count = TASK_NUM - remaining_task_num - 1
-    baseline_cost = greedy.accumulated_cost[task_count]
+    baseline_cost = greedy.greedy_cost[task_count]
     reward = (baseline_cost - state[0]) / baseline_cost
     # reward = baseline_cost - state[0]
 
@@ -395,6 +389,7 @@ class DQN:
             print(f"episode No. {episode}: ", end='')
             current_state, active_tasklist = state_init()
             total_reward = 0
+            total_cost = 0
             done = False
 
             episode_info = list()
@@ -408,9 +403,10 @@ class DQN:
                 # 执行action，环境变化
                 next_state, reward, done, active_tasklist = state_step(current_state, action, active_tasklist)
                 total_reward += reward
+                total_cost += next_state[0]
                 if done:
                     self.total_reward.append(total_reward)
-                    self.total_cost.append(next_state[0])
+                    self.total_cost.append(total_cost)
 
                 # 提取各位置的任务队列长度
                 qs_user = list()
@@ -499,7 +495,7 @@ def make_excel(filename: str) -> None:
     worksheet.write(1, 4, "opt_total_cost")
     worksheet.write(1, 5, opt.total_cost)
     worksheet.write(2, 4, "greedy_total_cost")
-    worksheet.write(2, 5, greedy.accumulated_cost[TASK_NUM-1])
+    worksheet.write(2, 5, sum(greedy.greedy_cost))
 
     worksheet = workbook.add_sheet("DQN")
 
@@ -565,7 +561,7 @@ def plot_training_progress(filename: str) -> None:
 
 
 if __name__ == "__main__":
-    random.seed()
+    random.seed(1)
 
     user_list = [User(corresponding_MEC[i]) for i in range(USER_NUM)]
     task_list = [Task(random.randint(0, USER_NUM - 1)) for i in range(TASK_NUM)]

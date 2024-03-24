@@ -4,8 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="045bd573-d7b3-4945-89ad-4770799b5651" name="更改" comment="style: configured terminal display style and added output Excel file contents, now including actions, rewards, costs and queue length of the whole system of each episode">
+    <list default="true" id="045bd573-d7b3-4945-89ad-4770799b5651" name="更改" comment="fix: some changes that do not affect the code function">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DQN_mf.py" beforeDir="false" afterPath="$PROJECT_DIR$/DQN_mf.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MEC_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/MEC_model.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -32,16 +34,16 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.main.executor": "Debug",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "main",
-    "ignore.virus.scanning.warn.message": "true",
-    "last_opened_file_path": "C:/Users/sean-/Documents/PycharmProjects/DQN_MEC_Pro2"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/sean-/Documents/PycharmProjects/DQN_MEC_Pro2&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="MEC_with_DQN" />
@@ -146,7 +148,15 @@
       <option name="project" value="LOCAL" />
       <updated>1711188167664</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="fix: some changes that do not affect the code function">
+      <option name="closed" value="true" />
+      <created>1711193442952</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1711193442952</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -158,17 +168,7 @@
     <MESSAGE value="perf: new plot style and saving plot to png" />
     <MESSAGE value="changes after discussion: adding task queue, changing the standardize method, refactor the greedy method, etc." />
     <MESSAGE value="style: configured terminal display style and added output Excel file contents, now including actions, rewards, costs and queue length of the whole system of each episode" />
-    <option name="LAST_COMMIT_MESSAGE" value="style: configured terminal display style and added output Excel file contents, now including actions, rewards, costs and queue length of the whole system of each episode" />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/main.py</url>
-          <line>594</line>
-          <option name="timeStamp" value="8" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
+    <MESSAGE value="fix: some changes that do not affect the code function" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: some changes that do not affect the code function" />
   </component>
 </project>

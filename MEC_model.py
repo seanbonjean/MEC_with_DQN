@@ -2,7 +2,7 @@ import random
 import numpy as np
 
 USER_NUM = 11
-MEC_NUM = 7
+MEC_NUM = 5
 
 # 信道状态相关参数
 u2m_band = 2.3 * (10 ** 6)  # 无线信道带宽 (Hz)
@@ -11,20 +11,19 @@ u2m_fade = 10 ** (-2)  # 功率损耗
 u2m_noise = 10 ** (-6)  # 高斯噪声 (W)
 m2m_power = 3  # 核心网传输功率m2m (W)
 m2c_power = 3  # 核心网传输功率m2c (W)
-m2c_speed = 5700.0  # 各基站到云的连接速率 (KB/s)
+m2c_speed = 4000.0  # 各基站到云的连接速率 (KB/s)
 
 LATENCY_FACTOR = 0.5
 ENERGY_FACTOR = 0.5
 
 # TODO 该列表为每个用户指定对应MEC服务器，等加入MEC协作后需删去
-corresponding_MEC = [0, 0, 1, 2, 3, 4, 4, 4, 5, 5, 6]
+# corresponding_MEC = [0, 0, 1, 2, 3, 4, 4, 4, 5, 5, 6]
+corresponding_MEC = [0, 0, 1, 1, 2, 2, 3, 3, 3, 4, 4]
 
 
 class User:
     def __init__(self, server_index: int) -> None:
-        random.seed()
-
-        self.cpu_frequency = random.uniform(2, 4)  # ED的计算能力，以CPU频率体现 (GHz)
+        self.cpu_frequency = random.uniform(1, 3)  # ED的计算能力，以CPU频率体现 (GHz)
         self.efficiency_factor = 0.03  # 芯片架构决定的能效因数，体现在能耗的计算中
         self.queue_latency = 0.0  # 清空当前任务队列所需的时间
         self.my_server = server_index  # 服务该用户的MEC服务器编号
@@ -47,8 +46,6 @@ class User:
 
 class Task:
     def __init__(self, user_index: int) -> None:
-        random.seed()
-
         self.data_size = random.uniform(200, 600)  # 任务数据大小 (KB)
         self.cycles_per_bit = 800  # 每bit所需CPU循环次数
         self.workload = self.data_size * 2 ** 10 * 8 * self.cycles_per_bit * 10 ** (-9)  # 任务负载，以所需CPU循环次数体现 (G cycle)
@@ -78,10 +75,10 @@ class Task:
         self.cost = 0.0  # 问题所优化的目标函数，是一个时延和能耗的加权参考值，将DQN每一episode的总cost与贪心算法得到的cost比较，以计算reward
 
     def get_cost(self) -> None:
-        self.latency_std = (self.latency - self.latency_min) / (self.latency_max - self.latency_min)
-        self.energy_std = (self.energy - self.energy_min) / (self.energy_max - self.energy_min)
-        self.cost = self.latency_std * LATENCY_FACTOR + self.energy_std * ENERGY_FACTOR
-        # self.cost = self.latency * 0.18 + self.energy * 0.82
+        # self.latency_std = (self.latency - self.latency_min) / (self.latency_max - self.latency_min)
+        # self.energy_std = (self.energy - self.energy_min) / (self.energy_max - self.energy_min)
+        # self.cost = self.latency_std * LATENCY_FACTOR + self.energy_std * ENERGY_FACTOR
+        self.cost = self.latency * 0.18 + self.energy * 0.82
 
 
 class Channel:
@@ -107,7 +104,7 @@ class Channel:
 
 class MecServer:
     def __init__(self) -> None:
-        self.cpu_frequency = random.randint(5, 7)  # MEC服务器的计算能力，以CPU频率体现 (GHz)
+        self.cpu_frequency = random.randint(6, 8)  # MEC服务器的计算能力，以CPU频率体现 (GHz)
         self.queue_latency = 0.0  # 清空当前任务队列所需的时间
 
     def get_mec_latency_energy(self, task: Task, channel: Channel, indexes: tuple) -> tuple:
@@ -130,6 +127,7 @@ class MecServer:
         trans_latency = trans_latency_u2m + trans_latency_m2m
         exe_latency = task.workload / self.cpu_frequency
         latency = max(trans_latency, self.queue_latency) + exe_latency
+        # print(f"MEC: trans: {trans_latency}, exe: {exe_latency}")
 
         energy = u2m_power * trans_latency_u2m + m2m_power * trans_latency_m2m
 
@@ -139,7 +137,7 @@ class MecServer:
 class CloudServer:
 
     def __init__(self) -> None:
-        self.cpu_frequency = 7  # 云的计算能力，以CPU频率体现 (GHz)
+        self.cpu_frequency = 10  # 云的计算能力，以CPU频率体现 (GHz)
         self.queue_latency = 0.0  # 清空当前任务队列所需的时间
 
     def get_cloud_latency_energy(self, task: Task, channel: Channel, indexes: tuple) -> tuple:
