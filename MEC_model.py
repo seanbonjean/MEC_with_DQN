@@ -1,8 +1,8 @@
 import random
 import numpy as np
 
-USER_NUM = 11
-MEC_NUM = 5
+USER_NUM = 25
+MEC_NUM = 10
 
 # 信道状态相关参数
 u2m_band = 2.3 * (10 ** 6)  # 无线信道带宽 (Hz)
@@ -11,14 +11,21 @@ u2m_fade = 10 ** (-2)  # 功率损耗
 u2m_noise = 10 ** (-6)  # 高斯噪声 (W)
 m2m_power = 3  # 核心网传输功率m2m (W)
 m2c_power = 3  # 核心网传输功率m2c (W)
-m2c_speed = 4000.0  # 各基站到云的连接速率 (KB/s)
+m2c_speed = 1000.0  # 各基站到云的连接速率 (KB/s)
 
 LATENCY_FACTOR = 0.5
 ENERGY_FACTOR = 0.5
 
 # TODO 该列表为每个用户指定对应MEC服务器，等加入MEC协作后需删去
-# corresponding_MEC = [0, 0, 1, 2, 3, 4, 4, 4, 5, 5, 6]
-corresponding_MEC = [0, 0, 1, 1, 2, 2, 3, 3, 3, 4, 4]
+corresponding_MEC = [4, 1, 7, 7, 4, 9, 8, 9, 5, 7, 4, 7, 9, 1, 3, 5, 4, 0, 8, 0, 2, 4, 6, 3, 0]
+# USER_NUM = 25, MEC_NUM = 10
+
+# corresponding_MEC = [5, 2, 7, 0, 6, 0, 2, 7, 4, 7, 7, 7, 7, 5, 0, 3, 5, 4, 5, 0, 1, 1, 3, 0, 5]
+# USER_NUM = 25, MEC_NUM = 8
+
+# corresponding_MEC = [0, 0, 0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 4, 5, 5, 6, 6]  # USER_NUM = 17, MEC_NUM = 7
+# corresponding_MEC = [0, 0, 1, 2, 3, 4, 4, 4, 5, 5, 6]  # MEC_NUM = 7
+# corresponding_MEC = [0, 0, 1, 1, 2, 2, 3, 3, 3, 4, 4]  # MEC_NUM = 5
 
 
 class User:
@@ -156,6 +163,7 @@ class CloudServer:
         trans_latency = trans_latency_u2m + trans_latency_m2c
         exe_latency = task.workload / self.cpu_frequency
         latency = max(trans_latency, self.queue_latency) + exe_latency
+        # print(f"CLOUD: trans: {trans_latency}, exe: {exe_latency}")
 
         energy = u2m_power * trans_latency_u2m + m2c_power * trans_latency_m2c
 

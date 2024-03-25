@@ -363,8 +363,8 @@ class DQN:
     """
 
     def __init__(self) -> None:
-        self.EPISODE_NUM = 500
-        self.START_STEP = 20  # 第几步后开始学习
+        self.EPISODE_NUM = 200
+        self.START_STEP = 1000  # 第几步后开始学习
         self.INTERVAL_STEP = 1  # 每隔几步学习一次
 
         self.info_recorder = list()  # 记录每个episode中每一步的action/reward/cost（也就是state[0]）
@@ -566,8 +566,8 @@ if __name__ == "__main__":
     user_list = [User(corresponding_MEC[i]) for i in range(USER_NUM)]
     task_list = [Task(random.randint(0, USER_NUM - 1)) for i in range(TASK_NUM)]
     # 任务之间的间隔时间
-    MAX_INTERVAL = 0.3
-    ZERO_PROBABILITY = 0.7
+    MAX_INTERVAL = 0.5
+    ZERO_PROBABILITY = 0.6
     task_interval = [random.uniform(0, MAX_INTERVAL) if random.uniform(0, 1) > ZERO_PROBABILITY else 0 for i in
                      range(TASK_NUM)]
     mec_list = [MecServer() for i in range(MEC_NUM)]
