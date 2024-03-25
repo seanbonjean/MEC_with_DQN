@@ -367,6 +367,12 @@ class DQN:
         self.START_STEP = 1000  # 第几步后开始学习
         self.INTERVAL_STEP = 1  # 每隔几步学习一次
 
+        self.learning_rate = 0.0005  # 目前0.001效果比较好,0.0005比较好,0.0007,0.0008差别不大更好,0.0009好一些差别不大
+        self.reward_decay = 0.7
+        self.epsilon = 0.9
+        self.replace_target_net_step = 100  # 每200步替换一次target_net参数，目前100比较好
+        self.memory_size = 500  # 记忆库容量
+
         self.info_recorder = list()  # 记录每个episode中每一步的action/reward/cost（也就是state[0]）
 
         self.total_reward = list()  # 每个episode的累计reward
@@ -375,11 +381,11 @@ class DQN:
         n_actions = 3  # TODO 加入MEC协作后更改为 MEC_NUM + 2
         n_features = 2
         self.agent = DeepQNetwork(n_actions, n_features,
-                                  learning_rate=0.0005,  # 目前0.001效果比较好,0.0005比较好,0.0007,0.0008差别不大更好,0.0009好一些差别不大
-                                  reward_decay=0.7,  # 之前是0.7
-                                  e_greedy=0.9,
-                                  replace_target_iter=100,  # 每200步替换一次target_net参数，目前100比较好
-                                  memory_size=500,  # 记忆上限
+                                  learning_rate=self.learning_rate,
+                                  reward_decay=self.reward_decay,
+                                  e_greedy=self.epsilon,
+                                  replace_target_iter=self.replace_target_net_step,
+                                  memory_size=self.memory_size,
                                   output_graph=False  # 是否输出tensorboard文件
                                   )
 
@@ -499,7 +505,7 @@ def make_excel(filename: str) -> None:
 
     worksheet = workbook.add_sheet("DQN")
 
-    for i in range(3):
+    for i in range(6):
         worksheet.col(i).width = 256 * 20
 
     worksheet.write(0, 0, "episode No.")
@@ -509,6 +515,23 @@ def make_excel(filename: str) -> None:
         worksheet.write(i + 1, 0, str(i + 1))
         worksheet.write(i + 1, 1, dqn.total_reward[i])
         worksheet.write(i + 1, 2, dqn.total_cost[i])
+
+    worksheet.write(1, 4, "episode number")
+    worksheet.write(2, 4, "start step")
+    worksheet.write(3, 4, "interval step")
+    worksheet.write(4, 4, "learning rate")
+    worksheet.write(5, 4, "reward decay")
+    worksheet.write(6, 4, "epsilon")
+    worksheet.write(7, 4, "replace target net step")
+    worksheet.write(8, 4, "memory size")
+    worksheet.write(1, 5, dqn.EPISODE_NUM)
+    worksheet.write(2, 5, dqn.START_STEP)
+    worksheet.write(3, 5, dqn.INTERVAL_STEP)
+    worksheet.write(4, 5, dqn.learning_rate)
+    worksheet.write(5, 5, dqn.reward_decay)
+    worksheet.write(6, 5, dqn.epsilon)
+    worksheet.write(7, 5, dqn.replace_target_net_step)
+    worksheet.write(8, 5, dqn.memory_size)
 
     for i in range(dqn.EPISODE_NUM):
         worksheet = workbook.add_sheet("epi No. " + str(i + 1))
