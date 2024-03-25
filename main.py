@@ -204,11 +204,11 @@ class Greedy:
             cloud.queue_latency = max(cloud.queue_latency - task_interval[task_count], 0)
 
             task_count += 1
-        print("******************************贪心卸载结果******************************")
+        print("****************************** greedy results ******************************")
         for i in range(len(self.greedy_cost)):
-            print(f"execute location: {greedy.other_values[i][0]}, \t\t"
-                  f"latency: {greedy.other_values[i][1]}, \t\t"
-                  f"energy: {greedy.other_values[i][2]}, \t\t"
+            print(f"execute location: {greedy.other_values[i][0]}, \t"
+                  f"latency: {greedy.other_values[i][1]}, \t"
+                  f"energy: {greedy.other_values[i][2]}, \t"
                   f"cost: {greedy.greedy_cost[i]}")
 
 
@@ -389,17 +389,17 @@ def make_excel(filename: str) -> None:
     for i in range(4):
         worksheet.col(i).width = 256 * 16
 
-    worksheet.write(0, 0, "user_cpu")
+    worksheet.write(0, 0, "user cpu freq")
     for i in range(USER_NUM):
         worksheet.write(i + 1, 0, user_list[i].cpu_frequency)
 
-    worksheet.write(0, 1, "task_my_user")
-    worksheet.write(0, 2, "task_size")
+    worksheet.write(0, 1, "task.my_user")
+    worksheet.write(0, 2, "task size")
     for i in range(TASK_NUM):
         worksheet.write(i + 1, 1, str(task_list[i].my_user))
         worksheet.write(i + 1, 2, task_list[i].data_size)
 
-    worksheet.write(0, 3, "mec_cpu")
+    worksheet.write(0, 3, "mec cpu freq")
     for i in range(MEC_NUM):
         worksheet.write(i + 1, 3, mec_list[i].cpu_frequency)
 
@@ -409,8 +409,8 @@ def make_excel(filename: str) -> None:
         worksheet.col(i).width = 256 * 12
 
     worksheet.write(0, 0, "local")
-    worksheet.write(0, 2, "local_mec")
-    worksheet.write(0, 7, "random_mec")
+    worksheet.write(0, 2, "local mec")
+    worksheet.write(0, 7, "random mec")
     worksheet.write(0, 12, "cloud")
     worksheet.write(1, 0, "latency")
     worksheet.write(1, 1, "energy")
@@ -456,7 +456,7 @@ def make_excel(filename: str) -> None:
     for i in range(5, 7):
         worksheet.col(i).width = 256 * 20
 
-    worksheet.write(0, 0, "exe_loc")
+    worksheet.write(0, 0, "execute location")
     worksheet.write(0, 1, "latency")
     worksheet.write(0, 2, "energy")
     worksheet.write(0, 3, "cost")
@@ -466,9 +466,9 @@ def make_excel(filename: str) -> None:
         worksheet.write(i + 1, 2, greedy.other_values[i][2])
         worksheet.write(i + 1, 3, greedy.greedy_cost[i])
 
-    worksheet.write(1, 5, "opt_total_cost")
+    worksheet.write(1, 5, "optimal total cost")
     worksheet.write(1, 6, opt.total_cost)
-    worksheet.write(2, 5, "greedy_total_cost")
+    worksheet.write(2, 5, "greedy total cost")
     worksheet.write(2, 6, sum(greedy.greedy_cost))
 
     worksheet = workbook.add_sheet("DQN")
