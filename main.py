@@ -35,25 +35,11 @@ class InspectParameters:
             task.latency, task.energy = user_list[user_index].get_local_latency_energy(task.workload)
             self.local_values.append((task.latency, task.energy))
 
-            task.latency_min = task.latency
-            task.latency_max = task.latency
-            task.energy_min = task.energy
-            task.energy_max = task.energy
-
             # 全部本地MEC执行
             mec_list[server_index].queue_latency = 0.0
             task.latency, task.energy = mec_list[server_index].get_mec_latency_energy(task, speed, (
                 user_index, server_index, server_index))
-            self.local_mec_values.append((task.latency, task.energy))
-
-            if task.latency_min > task.latency:
-                task.latency_min = task.latency
-            if task.latency_max < task.latency:
-                task.latency_max = task.latency
-            if task.energy_min > task.energy:
-                task.energy_min = task.energy
-            if task.energy_max < task.energy:
-                task.energy_max = task.energy
+            self.local_mec_values.append((task.trans_latency, task.exe_latency, task.latency, task.energy))
 
             # 随机MEC执行
             # TODO 加入MEC协作后添加功能
@@ -61,47 +47,7 @@ class InspectParameters:
             # 全部云上执行
             cloud.queue_latency = 0.0
             task.latency, task.energy = cloud.get_cloud_latency_energy(task, speed, (user_index, server_index))
-            self.cloud_values.append((task.latency, task.energy))
-
-            if task.latency_min > task.latency:
-                task.latency_min = task.latency
-            if task.latency_max < task.latency:
-                task.latency_max = task.latency
-            if task.energy_min > task.energy:
-                task.energy_min = task.energy
-            if task.energy_max < task.energy:
-                task.energy_max = task.energy
-
-            task.latency_max *= 1.1
-            task.latency_min *= 0.9
-            task.energy_max *= 1.1
-            task.energy_min *= 0.9
-
-    def show_situation(self, location: str) -> None:
-        """
-        进行标准化处理，计算成本和总成本，显示所选情景的所有性能参数
-        :param location: 选择情景
-        """
-        if location == "local":
-            location_str = "全部本地执行"
-            values = self.local_values
-        elif location == "local_mec":
-            location_str = "全部本地MEC执行"
-            values = self.local_mec_values
-        elif location == "random_mec":
-            # TODO 加入MEC协作后添加功能
-            # location_str = "随机MEC执行"
-            # values = self.random_mec_values
-            return
-        elif location == "cloud":
-            location_str = "全部云上执行"
-            values = self.cloud_values
-        else:
-            raise ValueError
-
-        print("******************************" + location_str + "******************************")
-        for latency, energy in values:
-            print(f"latency: {latency:<23}, \t\tenergy: {energy:<23}")
+            self.cloud_values.append((task.trans_latency, task.exe_latency, task.latency, task.energy))
 
 
 class Optimal:
@@ -184,7 +130,6 @@ class Optimal:
             cloud.queue_latency = max(cloud.queue_latency - task_interval[task_count], 0)
 
             task_count += 1
-        print("******************************遍历求最优总成本******************************")
         print(f"optimal total cost: {self.total_cost}")
 
 
@@ -259,8 +204,6 @@ class Greedy:
             cloud.queue_latency = max(cloud.queue_latency - task_interval[task_count], 0)
 
             task_count += 1
-
-    def show_greedy_results(self) -> None:
         print("******************************贪心卸载结果******************************")
         for i in range(len(self.greedy_cost)):
             print(f"execute location: {greedy.other_values[i][0]}, \t\t"
@@ -364,7 +307,7 @@ class DQN:
 
     def __init__(self) -> None:
         self.EPISODE_NUM = 200
-        self.START_STEP = 1000  # 第几步后开始学习
+        self.START_STEP = 300  # 第几步后开始学习
         self.INTERVAL_STEP = 1  # 每隔几步学习一次
 
         self.learning_rate = 0.0005  # 目前0.001效果比较好,0.0005比较好,0.0007,0.0008差别不大更好,0.0009好一些差别不大
@@ -444,7 +387,7 @@ def make_excel(filename: str) -> None:
     worksheet = workbook.add_sheet("env")
 
     for i in range(4):
-        worksheet.col(i).width = 256 * 20
+        worksheet.col(i).width = 256 * 16
 
     worksheet.write(0, 0, "user_cpu")
     for i in range(USER_NUM):
@@ -462,30 +405,55 @@ def make_excel(filename: str) -> None:
 
     worksheet = workbook.add_sheet("inspect")
 
-    for i in range(8):
-        worksheet.col(i).width = 256 * 20
+    for i in range(17):
+        worksheet.col(i).width = 256 * 12
 
     worksheet.write(0, 0, "local")
     worksheet.write(0, 2, "local_mec")
-    worksheet.write(0, 4, "random_mec")
-    worksheet.write(0, 6, "cloud")
-    for i in range(4):
-        worksheet.write(1, i * 2, "latency")
-        worksheet.write(1, i * 2 + 1, "energy")
+    worksheet.write(0, 7, "random_mec")
+    worksheet.write(0, 12, "cloud")
+    worksheet.write(1, 0, "latency")
+    worksheet.write(1, 1, "energy")
+    worksheet.write(1, 2, "trans u2m")
+    worksheet.write(1, 3, "trans m2m")
+    worksheet.write(1, 4, "exe latency")
+    worksheet.write(1, 5, "latency")
+    worksheet.write(1, 6, "energy")
+    worksheet.write(1, 7, "trans u2m")
+    worksheet.write(1, 8, "trans m2m")
+    worksheet.write(1, 9, "exe latency")
+    worksheet.write(1, 10, "latency")
+    worksheet.write(1, 11, "energy")
+    worksheet.write(1, 12, "trans u2m")
+    worksheet.write(1, 13, "trans m2c")
+    worksheet.write(1, 14, "exe latency")
+    worksheet.write(1, 15, "latency")
+    worksheet.write(1, 16, "energy")
     for i in range(TASK_NUM):
         worksheet.write(i + 2, 0, inspect.local_values[i][0])
         worksheet.write(i + 2, 1, inspect.local_values[i][1])
-        worksheet.write(i + 2, 2, inspect.local_mec_values[i][0])
-        worksheet.write(i + 2, 3, inspect.local_mec_values[i][1])
+        worksheet.write(i + 2, 2, inspect.local_mec_values[i][0][0])
+        worksheet.write(i + 2, 3, inspect.local_mec_values[i][0][1])
+        worksheet.write(i + 2, 4, inspect.local_mec_values[i][1])
+        worksheet.write(i + 2, 5, inspect.local_mec_values[i][2])
+        worksheet.write(i + 2, 6, inspect.local_mec_values[i][3])
         # TODO 加入MEC协作后取消注释
-        # worksheet.write(i + 2, 4, inspect.random_mec_values[i][0])
-        # worksheet.write(i + 2, 5, inspect.random_mec_values[i][1])
-        worksheet.write(i + 2, 6, inspect.cloud_values[i][0])
-        worksheet.write(i + 2, 7, inspect.cloud_values[i][1])
+        # worksheet.write(i + 2, 7, inspect.random_mec_values[i][0][0])
+        # worksheet.write(i + 2, 8, inspect.random_mec_values[i][0][1])
+        # worksheet.write(i + 2, 9, inspect.random_mec_values[i][1])
+        # worksheet.write(i + 2, 10, inspect.random_mec_values[i][2])
+        # worksheet.write(i + 2, 11, inspect.random_mec_values[i][3])
+        worksheet.write(i + 2, 12, inspect.cloud_values[i][0][0])
+        worksheet.write(i + 2, 13, inspect.cloud_values[i][0][1])
+        worksheet.write(i + 2, 14, inspect.cloud_values[i][1])
+        worksheet.write(i + 2, 15, inspect.cloud_values[i][2])
+        worksheet.write(i + 2, 16, inspect.cloud_values[i][3])
 
     worksheet = workbook.add_sheet("greedy")
 
-    for i in range(6):
+    for i in range(5):
+        worksheet.col(i).width = 256 * 16
+    for i in range(5, 7):
         worksheet.col(i).width = 256 * 20
 
     worksheet.write(0, 0, "exe_loc")
@@ -498,14 +466,16 @@ def make_excel(filename: str) -> None:
         worksheet.write(i + 1, 2, greedy.other_values[i][2])
         worksheet.write(i + 1, 3, greedy.greedy_cost[i])
 
-    worksheet.write(1, 4, "opt_total_cost")
-    worksheet.write(1, 5, opt.total_cost)
-    worksheet.write(2, 4, "greedy_total_cost")
-    worksheet.write(2, 5, sum(greedy.greedy_cost))
+    worksheet.write(1, 5, "opt_total_cost")
+    worksheet.write(1, 6, opt.total_cost)
+    worksheet.write(2, 5, "greedy_total_cost")
+    worksheet.write(2, 6, sum(greedy.greedy_cost))
 
     worksheet = workbook.add_sheet("DQN")
 
-    for i in range(6):
+    for i in range(4):
+        worksheet.col(i).width = 256 * 16
+    for i in range(4, 6):
         worksheet.col(i).width = 256 * 20
 
     worksheet.write(0, 0, "episode No.")
@@ -599,17 +569,12 @@ if __name__ == "__main__":
 
     inspect = InspectParameters()
     inspect.try_all_situation()
-    inspect.show_situation("local")
-    inspect.show_situation("local_mec")
-    inspect.show_situation("random_mec")
-    inspect.show_situation("cloud")
 
     opt = Optimal()
     opt.get_opt_cost()
 
     greedy = Greedy()
     greedy.get_greedy_results()
-    greedy.show_greedy_results()
 
     dqn = DQN()
     dqn.train()

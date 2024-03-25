@@ -13,15 +13,16 @@ m2m_power = 3  # 核心网传输功率m2m (W)
 m2c_power = 3  # 核心网传输功率m2c (W)
 m2c_speed = 1000.0  # 各基站到云的连接速率 (KB/s)
 
-LATENCY_FACTOR = 0.5
-ENERGY_FACTOR = 0.5
+LATENCY_FACTOR = 0.18
+ENERGY_FACTOR = 0.82
 
 # TODO 该列表为每个用户指定对应MEC服务器，等加入MEC协作后需删去
-corresponding_MEC = [4, 1, 7, 7, 4, 9, 8, 9, 5, 7, 4, 7, 9, 1, 3, 5, 4, 0, 8, 0, 2, 4, 6, 3, 0]
 # USER_NUM = 25, MEC_NUM = 10
+corresponding_MEC = [4, 1, 7, 7, 4, 9, 8, 9, 5, 7, 4, 7, 9, 1, 3, 5, 4, 0, 8, 0, 2, 4, 6, 3, 0]
 
-# corresponding_MEC = [5, 2, 7, 0, 6, 0, 2, 7, 4, 7, 7, 7, 7, 5, 0, 3, 5, 4, 5, 0, 1, 1, 3, 0, 5]
+
 # USER_NUM = 25, MEC_NUM = 8
+# corresponding_MEC = [5, 2, 7, 0, 6, 0, 2, 7, 4, 7, 7, 7, 7, 5, 0, 3, 5, 4, 5, 0, 1, 1, 3, 0, 5]
 
 # corresponding_MEC = [0, 0, 0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 4, 5, 5, 6, 6]  # USER_NUM = 17, MEC_NUM = 7
 # corresponding_MEC = [0, 0, 1, 2, 3, 4, 4, 4, 5, 5, 6]  # MEC_NUM = 7
@@ -72,20 +73,13 @@ class Task:
             task.execute_location = action
         """
         self.latency = 0.0  # 任务总时延
-        self.latency_min = 0.0
-        self.latency_max = 0.0
+        self.trans_latency = (0.0, 0.0)  # 传输时延：第一跳u2m，第二跳m2m/m2c
+        self.exe_latency = 0.0  # 执行时延
         self.energy = 0.0  # 任务能耗
-        self.energy_min = 0.0
-        self.energy_max = 0.0
-        self.latency_std = 0.0  # 标准化后的总时延
-        self.energy_std = 0.0  # 标准化后的能耗
         self.cost = 0.0  # 问题所优化的目标函数，是一个时延和能耗的加权参考值，将DQN每一episode的总cost与贪心算法得到的cost比较，以计算reward
 
     def get_cost(self) -> None:
-        # self.latency_std = (self.latency - self.latency_min) / (self.latency_max - self.latency_min)
-        # self.energy_std = (self.energy - self.energy_min) / (self.energy_max - self.energy_min)
-        # self.cost = self.latency_std * LATENCY_FACTOR + self.energy_std * ENERGY_FACTOR
-        self.cost = self.latency * 0.18 + self.energy * 0.82
+        self.cost = self.latency * LATENCY_FACTOR + self.energy * ENERGY_FACTOR
 
 
 class Channel:
@@ -134,7 +128,9 @@ class MecServer:
         trans_latency = trans_latency_u2m + trans_latency_m2m
         exe_latency = task.workload / self.cpu_frequency
         latency = max(trans_latency, self.queue_latency) + exe_latency
-        # print(f"MEC: trans: {trans_latency}, exe: {exe_latency}")
+
+        task.trans_latency = (trans_latency_u2m, trans_latency_m2m)
+        task.exe_latency = exe_latency
 
         energy = u2m_power * trans_latency_u2m + m2m_power * trans_latency_m2m
 
@@ -163,7 +159,9 @@ class CloudServer:
         trans_latency = trans_latency_u2m + trans_latency_m2c
         exe_latency = task.workload / self.cpu_frequency
         latency = max(trans_latency, self.queue_latency) + exe_latency
-        # print(f"CLOUD: trans: {trans_latency}, exe: {exe_latency}")
+
+        task.trans_latency = (trans_latency_u2m, trans_latency_m2c)
+        task.exe_latency = exe_latency
 
         energy = u2m_power * trans_latency_u2m + m2c_power * trans_latency_m2c
 
