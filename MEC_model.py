@@ -2,7 +2,7 @@ import random
 import numpy as np
 
 USER_NUM = 25
-MEC_NUM = 10
+MEC_NUM = 5
 
 # 信道状态相关参数
 u2m_band = 2.3 * (10 ** 6)  # 无线信道带宽 (Hz)
@@ -16,9 +16,11 @@ m2c_speed = 1000.0  # 各基站到云的连接速率 (KB/s)
 LATENCY_FACTOR = 0.18
 ENERGY_FACTOR = 0.82
 
-# TODO 该列表为每个用户指定对应MEC服务器，等加入MEC协作后需删去
+# USER_NUM = 25, MEC_NUM = 5
+corresponding_MEC = [0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4]
+
 # USER_NUM = 25, MEC_NUM = 10
-corresponding_MEC = [4, 1, 7, 7, 4, 9, 8, 9, 5, 7, 4, 7, 9, 1, 3, 5, 4, 0, 8, 0, 2, 4, 6, 3, 0]
+# corresponding_MEC = [4, 1, 7, 7, 4, 9, 8, 9, 5, 7, 4, 7, 9, 1, 3, 5, 4, 0, 8, 0, 2, 4, 6, 3, 0]
 
 
 # USER_NUM = 25, MEC_NUM = 8
@@ -95,12 +97,13 @@ class Channel:
 
         # u2m初始化
         for i in range(USER_NUM):
-            # TODO 加入MEC协作后需改为完整的u2m速率
             self.u2m[i, corresponding_MEC[i]] = u2m_band * np.log2(1 + u2m_power * u2m_fade / u2m_noise) / (8 * 2 ** 10)
 
+        # m2m初始化
         for i in range(MEC_NUM):
-            # TODO 加入MEC协作后需添加MEC间传输
-            self.m2m[i, i] = 0.0
+            for j in range(MEC_NUM):
+                # TODO 待调整数值
+                self.m2m[i, j] = random.uniform(4000, 6000)
 
 
 class MecServer:

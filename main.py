@@ -5,7 +5,7 @@ import copy
 import xlwt
 import matplotlib.pyplot as plt
 
-TASK_NUM = 100
+TASK_NUM = 200
 
 
 class InspectParameters:
@@ -42,7 +42,11 @@ class InspectParameters:
             self.local_mec_values.append((task.trans_latency, task.exe_latency, task.latency, task.energy))
 
             # 随机MEC执行
-            # TODO 加入MEC协作后添加功能
+            rand_mec_index = random.randint(0, MEC_NUM - 1)
+            mec_list[rand_mec_index].queue_latency = 0.0
+            task.latency, task.energy = mec_list[rand_mec_index].get_mec_latency_energy(task, speed, (
+                user_index, server_index, rand_mec_index))
+            self.random_mec_values.append((task.trans_latency, task.exe_latency, task.latency, task.energy))
 
             # 全部云上执行
             cloud.queue_latency = 0.0
@@ -81,17 +85,18 @@ class Optimal:
             min_cost_latency = task.latency  # 最小cost对应的时延
             min_cost_energy = task.energy  # 最小cost对应的能耗
 
-            # 卸载到本地MEC
-            task.execute_location = server_index  # TODO 加入MEC协作后更改为对所有MEC的遍历
-            task.latency, task.energy = mec_list[task.execute_location].get_mec_latency_energy(task, speed, (
-                user_index, server_index, task.execute_location))
-            task.get_cost()
+            # 卸载到所有MEC
+            for i in range(0, MEC_NUM):
+                task.execute_location = i
+                task.latency, task.energy = mec_list[task.execute_location].get_mec_latency_energy(task, speed, (
+                    user_index, server_index, task.execute_location))
+                task.get_cost()
 
-            if task.cost < min_cost:
-                min_cost = task.cost
-                min_cost_exe_loc = server_index
-                min_cost_latency = task.latency
-                min_cost_energy = task.energy
+                if task.cost < min_cost:
+                    min_cost = task.cost
+                    min_cost_exe_loc = server_index
+                    min_cost_latency = task.latency
+                    min_cost_energy = task.energy
 
             # 卸载到云
             task.execute_location = -2
@@ -159,9 +164,9 @@ class Greedy:
 
             # 本地执行
             option_list.append((-1, user_list[user_index].cpu_frequency, user_list[user_index].queue_latency))
-            # 卸载到本地MEC
-            i = server_index  # TODO 加入MEC协作后更改为遍历加入所有MEC
-            option_list.append((i, mec_list[i].cpu_frequency, mec_list[i].queue_latency))
+            # 卸载到所有MEC
+            for i in range(0, MEC_NUM):
+                option_list.append((i, mec_list[i].cpu_frequency, mec_list[i].queue_latency))
             # 卸载到云
             option_list.append((-2, cloud.cpu_frequency, cloud.queue_latency))
 
@@ -232,8 +237,8 @@ def state_init() -> tuple:
         task.energy_std = 0.0
         task.cost = 0.0
 
-    total_cost = 0
-    initial_state = [total_cost, TASK_NUM]  # state的定义：已规划任务的总成本；未规划任务的数量
+    task_cost = 0
+    initial_state = [task_cost, TASK_NUM]  # state的定义：当前任务的成本；未规划任务的数量
     active_tasklist = copy.deepcopy(task_list)  # 会被进行删改操作的、每一episode各自的tasklist
 
     return initial_state, active_tasklist
@@ -250,23 +255,12 @@ def state_step(state: list, action: int, active_tasklist: list) -> tuple:
     user_index = task.my_user
     server_index = user_list[user_index].my_server
 
-    # TODO 加入MEC协作后更改为注释中内容
-    if action == 0:
-        task.execute_location = server_index
-    elif action == 1:
-        task.execute_location = -1
-    elif action == 2:
-        task.execute_location = -2
-    else:
-        raise ValueError
-    """
     if action == MEC_NUM:
         task.execute_location = -1
     elif action == MEC_NUM + 1:
         task.execute_location = -2
     else:
         task.execute_location = action
-    """
 
     if task.execute_location == -1:  # 本地执行
         task.latency, task.energy = user_list[user_index].get_local_latency_energy(task.workload)
@@ -321,7 +315,7 @@ class DQN:
         self.total_reward = list()  # 每个episode的累计reward
         self.total_cost = list()  # 每个episode所有任务的总成本
 
-        n_actions = 3  # TODO 加入MEC协作后更改为 MEC_NUM + 2
+        n_actions = MEC_NUM + 2
         n_features = 2
         self.agent = DeepQNetwork(n_actions, n_features,
                                   learning_rate=self.learning_rate,
@@ -437,12 +431,11 @@ def make_excel(filename: str) -> None:
         worksheet.write(i + 2, 4, inspect.local_mec_values[i][1])
         worksheet.write(i + 2, 5, inspect.local_mec_values[i][2])
         worksheet.write(i + 2, 6, inspect.local_mec_values[i][3])
-        # TODO 加入MEC协作后取消注释
-        # worksheet.write(i + 2, 7, inspect.random_mec_values[i][0][0])
-        # worksheet.write(i + 2, 8, inspect.random_mec_values[i][0][1])
-        # worksheet.write(i + 2, 9, inspect.random_mec_values[i][1])
-        # worksheet.write(i + 2, 10, inspect.random_mec_values[i][2])
-        # worksheet.write(i + 2, 11, inspect.random_mec_values[i][3])
+        worksheet.write(i + 2, 7, inspect.random_mec_values[i][0][0])
+        worksheet.write(i + 2, 8, inspect.random_mec_values[i][0][1])
+        worksheet.write(i + 2, 9, inspect.random_mec_values[i][1])
+        worksheet.write(i + 2, 10, inspect.random_mec_values[i][2])
+        worksheet.write(i + 2, 11, inspect.random_mec_values[i][3])
         worksheet.write(i + 2, 12, inspect.cloud_values[i][0][0])
         worksheet.write(i + 2, 13, inspect.cloud_values[i][0][1])
         worksheet.write(i + 2, 14, inspect.cloud_values[i][1])
@@ -502,6 +495,9 @@ def make_excel(filename: str) -> None:
     worksheet.write(6, 5, dqn.epsilon)
     worksheet.write(7, 5, dqn.replace_target_net_step)
     worksheet.write(8, 5, dqn.memory_size)
+
+    worksheet.write(12, 4, "average cost")
+    worksheet.write(12, 5, sum(dqn.total_cost) / len(dqn.total_cost))
 
     for i in range(dqn.EPISODE_NUM):
         worksheet = workbook.add_sheet("epi No. " + str(i + 1))
