@@ -232,8 +232,8 @@ def state_init() -> tuple:
         task.energy_std = 0.0
         task.cost = 0.0
 
-    total_cost = 0
-    initial_state = [total_cost, TASK_NUM]  # state的定义：已规划任务的总成本；未规划任务的数量
+    task_cost = 0
+    initial_state = [task_cost, TASK_NUM]  # state的定义：当前任务的成本；未规划任务的数量
     active_tasklist = copy.deepcopy(task_list)  # 会被进行删改操作的、每一episode各自的tasklist
 
     return initial_state, active_tasklist
